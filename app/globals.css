@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --primary: 199 89% 48%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 199 89% 48%;
+    --radius: 0.75rem;
+  }
+  * { @apply border-border; }
+  html { color-scheme: dark; }
+  body { @apply bg-background text-foreground; }
+}
+
+/* Block numbers are set in a condensed signage face, like the numbers on campus signboards. */
+.font-sign { font-family: var(--font-sign), "Arial Narrow", ui-sans-serif, system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+
+/* ---- labels on the map ---- */
+.campus-num, .campus-text { display: none; pointer-events: none; white-space: nowrap; font-weight: 700; color: #f4f4f5;
+  text-shadow: 0 0 3px #09090b, 0 0 3px #09090b, 0 0 4px #09090b, 0 0 6px #09090b; }
+.campus-num { font-family: var(--font-sign), "Arial Narrow", ui-sans-serif, sans-serif; font-size: 14px; line-height: 1; letter-spacing: 0.01em; }
+.campus-num[style*="cursor"] { pointer-events: auto; }
+.campus-name { font-size: 14px; color: #7dd3fc; }
+.campus-place { font-size: 15px; color: #bae6fd; }
+.campus-park { color: #86efac; }  /* parks in green */
+.campus-food { color: #fcd34d; }  /* food courts and shops in amber */
+.campus-gate { color: #fbbf24; }
+.map-z15 .campus-num { display: block; }   /* numbers and building names, from street level */
+.map-z13 .campus-place { display: block; } /* named places (Unimall, Unipolis, the main gate), from the overview */
+.campus-num.is-active { display: block; }
+.campus-text { color: #86efac; font-size: 12px; letter-spacing: 0.2px; }
+.campus-text.s1 { font-size: 10px; }
+.campus-text.s3 { font-size: 15px; }
+.map-z15 .campus-text { display: block; }
+.campus-num.hide, .campus-text.hide { visibility: hidden; }
+
+/* In 3D each number floats on its own roof as a small badge, so connected buildings are easy to tell apart. */
+.map-3d .campus-num { font-size: 13px; padding: 3px 6px; border-radius: 7px; text-shadow: none;
+  background: rgba(9, 9, 11, 0.88); border: 1px solid rgba(56, 189, 248, 0.75); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6); }
+.map-3d .campus-num.campus-name { color: #7dd3fc; }
+.map-3d .campus-num.campus-place { color: #bae6fd; }
+.map-3d .campus-num.campus-park { color: #86efac; border-color: rgba(134, 239, 172, 0.75); }
+.map-3d .campus-num.campus-food { color: #fcd34d; border-color: rgba(252, 211, 77, 0.75); }
+.map-3d .campus-num.campus-gate { color: #fbbf24; border-color: rgba(251, 191, 36, 0.8); }
+.map-3d .campus-num::after { content: ""; position: absolute; left: 50%; bottom: -5px; width: 0; height: 0; transform: translateX(-50%);
+  border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid rgba(56, 189, 248, 0.75); }
+
+/* The block you picked: a white signboard plate ringed in sky, flat or 3D, never hidden by other labels. */
+.campus-num.is-active, .map-3d .campus-num.is-active { z-index: 3; color: #0c4a6e; font-size: 17px; padding: 4px 8px; border-radius: 8px;
+  text-shadow: none; background: #fff; border: 0; box-shadow: 0 0 0 3px #0ea5e9, 0 6px 16px rgba(0, 0, 0, 0.55); }
+.map-3d .campus-num.is-active::after { border-top-color: #0ea5e9; }
+
+/* Owner editing: hidden labels look struck out, and the tapped spot gets an amber ring. */
+.campus-num.is-hidden { opacity: 0.5; text-decoration: line-through; }
+.map-3d .campus-num.is-hidden { border-style: dashed; text-decoration: none; }
+.edit-spot { width: 22px; height: 22px; border-radius: 9999px; border: 3px solid #fbbf24; background: rgba(251, 191, 36, 0.25);
+  box-shadow: 0 0 0 5px rgba(251, 191, 36, 0.2); pointer-events: none; }
+
+/* ---- your location ---- */
+.user-dot { width: 18px; height: 18px; border-radius: 9999px; background: #2563eb; border: 3px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.3); position: relative; }
+.user-dot span { position: absolute; inset: -14px; border-radius: 9999px; background: rgba(37, 99, 235, 0.25); animation: user-pulse 2s ease-out infinite; }
+@keyframes user-pulse { 0% { transform: scale(0.4); opacity: 1; } 100% { transform: scale(1.4); opacity: 0; } }
+
+.maplibregl-ctrl-attrib { background: rgba(9,9,11,.7) !important; color: #a1a1aa !important; }
+.maplibregl-ctrl-attrib a { color: #a1a1aa !important; }
