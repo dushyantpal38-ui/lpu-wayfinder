@@ -417,7 +417,8 @@ export function ShaderBackground({ className }: { className?: string }) {
     let inView = true
     let disposed = false
     const start = performance.now()
-    const timeAnimated = Math.abs(UNIFORMS.timeScale) > 0.0001
+    // Reduced motion: draw one still frame instead of animating.
+    const timeAnimated = Math.abs(UNIFORMS.timeScale) > 0.0001 && !window.matchMedia("(prefers-reduced-motion: reduce)").matches
 
     const resizeCanvas = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2)
@@ -516,7 +517,8 @@ export function ShaderBackground({ className }: { className?: string }) {
     }
     document.addEventListener("visibilitychange", onVisibilityChange)
 
-    function render(now: number) {
+    // An arrow function, not a declaration, so TypeScript keeps canvas and gl known as non-null inside it.
+    const render = (now: number) => {
       raf = 0
       if (disposed || !visible || !inView) return
       const dt = lastNow === null ? 0 : Math.min((now - lastNow) / 1000, 0.1)

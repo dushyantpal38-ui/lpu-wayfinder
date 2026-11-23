@@ -53,7 +53,6 @@ export type OwnerRow = {
 
 export type OwnerResult = { ok: boolean; error?: string | null; row?: DbBlock };
 
-export const ownerCheck = (key: string) => rpc<OwnerResult>("owner_check", { p_key: key });
 export const ownerLogin = (pass: string) => rpc<{ ok: boolean; token?: string; error?: string | null }>("owner_login", { p_pass: pass });
 export const ownerLogout = (token: string) => rpc<{ ok: boolean }>("owner_logout", { p_token: token });
 export const ownerStats = (key: string, days: number) => rpc<OwnerStats>("owner_stats", { p_key: key, p_days: days });

@@ -1,29 +1,23 @@
+import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { rpc } from "@/lib/supabase";
 
 // Receives anonymous visit counts from the site itself and passes them to the database with the ingest key
 // (VISIT_INGEST_KEY, a server-only setting on Vercel). The browser never sees that key, so nobody can write
-// visits straight into the database. The city comes from Vercel's network headers. Coordinates are only
+// visits straight into the database. Each open also carries a hash of the caller's IP, for a per-IP flood limit
+// (see supabase/per_ip_limits.sql). The city comes from Vercel's network headers. Coordinates are only
 // forwarded so the database can pick the nearest block; they are not stored anywhere.
 
 export const dynamic = "force-dynamic";
 
-const URL_ = (process.env.NEXT_PUBLIC_SUPABASE_URL || "https://zypkjzwkbkmnqhpziade.supabase.co").replace(/\/+$/, "");
-const KEY = process.env.NEXT_PUBLIC_SUPABASE_KEY || "sb_publishable_odtqlx_y5JYxXuQlq7Bm0A_fYVBeVNX";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const NO_STORE = { "Cache-Control": "no-store" };
+const call = (fn: string, args: Record<string, unknown>) => rpc<unknown>(fn, args, AbortSignal.timeout(8000));
 
-async function rpc(fn: string, args: Record<string, unknown>): Promise<unknown> {
-  const headers: Record<string, string> = { apikey: KEY, "Content-Type": "application/json" };
-  if (KEY.startsWith("eyJ")) headers.Authorization = `Bearer ${KEY}`;
-  const r = await fetch(`${URL_}/rest/v1/rpc/${fn}`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(args),
-    cache: "no-store",
-    signal: AbortSignal.timeout(8000),
-  });
-  if (!r.ok) throw new Error("HTTP " + r.status);
-  return r.json();
+/** The caller's IP, hashed with the ingest key so the database never sees the IP itself. Vercel sets x-real-ip. */
+function ipHash(req: NextRequest, salt: string): string | null {
+  const ip = req.headers.get("x-real-ip") || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return ip ? createHash("sha256").update(salt + "|" + ip).digest("hex") : null;
 }
 
 function header(req: NextRequest, name: string): string | null {
@@ -55,7 +49,7 @@ export async function POST(req: NextRequest) {
 
   try {
     if (b.t === "open") {
-      const id = await rpc("log_visit", {
+      const id = await call("log_visit", {
         p_ingest: ingest,
         p_visitor: b.v,
         p_device: typeof b.d === "string" ? b.d : null,
@@ -64,13 +58,14 @@ export async function POST(req: NextRequest) {
         p_city: header(req, "x-vercel-ip-city"),
         p_region: header(req, "x-vercel-ip-country-region"),
         p_country: header(req, "x-vercel-ip-country"),
+        p_ip: ipHash(req, ingest),
       });
       return reply({ id: typeof id === "number" ? id : null });
     }
     if (b.t === "place") {
       const lng = Number(b.lng), lat = Number(b.lat), id = Number(b.id);
       if (!Number.isFinite(lng) || !Number.isFinite(lat) || !Number.isSafeInteger(id) || id <= 0) return reply({ error: "bad_request" }, 400);
-      await rpc("visit_place", { p_ingest: ingest, p_visit: id, p_visitor: b.v, p_lng: lng, p_lat: lat });
+      await call("visit_place", { p_ingest: ingest, p_visit: id, p_visitor: b.v, p_lng: lng, p_lat: lat });
       return reply({ ok: true });
     }
     return reply({ error: "bad_request" }, 400);

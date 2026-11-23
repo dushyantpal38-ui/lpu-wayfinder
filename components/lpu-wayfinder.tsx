@@ -51,7 +51,7 @@ function PlaceChip({ b, onPick }: { b: Block; onPick: () => void }) {
 // The live campus map fills the screen. The search button opens the block list
 // (a sheet from the bottom on phones, a panel on the left on computers).
 export function LpuWayfinder() {
-  const { blocks, loading, editing } = useCampus();
+  const { blocks, db, loading, editing } = useCampus();
   const [query, setQuery] = React.useState("");
   const [destination, setDestination] = React.useState<string | null>(null);
   const [room, setRoom] = React.useState<string | null>(null); // from a timetable code like 34-204
@@ -111,11 +111,15 @@ export function LpuWayfinder() {
       } catch { wanted.current = null; }
     }
     const w = wanted.current;
-    if (!w || !blocks.some((x) => x.num === w.b)) return;
+    if (!w) return;
+    if (!blocks.some((x) => x.num === w.b)) {
+      if (db.length) wanted.current = null; // saved blocks are in and it is not one of them: forget the link
+      return;
+    }
     wanted.current = null;
     setRoom(w.r);
     setDestination(w.b);
-  }, [blocks]);
+  }, [blocks, db]);
 
   // Keep the address in step with the picked block, so it can be copied or bookmarked.
   React.useEffect(() => {
@@ -224,8 +228,9 @@ export function LpuWayfinder() {
       className="relative isolate flex h-[100svh] w-full flex-col overflow-hidden bg-zinc-950 text-white md:flex-row"
       onScroll={(e) => { const t = e.currentTarget; if (t.scrollTop || t.scrollLeft) { t.scrollTop = 0; t.scrollLeft = 0; } }}
     >
-      {/* Animated shader behind the whole website. The map and the panel sit on top of it. */}
-      <ShaderBackground className="absolute inset-0 z-[-1]" />
+      {/* Animated shader behind the whole website. The map and the panel sit on top of it. It is switched off
+          while walking, when the phone already runs GPS and the map, to save battery. */}
+      {!navigating && <ShaderBackground className="absolute inset-0 z-[-1]" />}
       <section className="absolute inset-0">
         <AdminEditor onStart={() => { setDestination(null); setRoom(null); setOpen(false); }} />
         <LiveCampusMap

@@ -34,12 +34,13 @@ export const fetchLabels = () =>
   get<DbLabel[]>("campus_labels?select=key,text,lng,lat,size&order=id.asc", "lpuLabelsNextV1");
 
 /** Calls a database function (the owner's save and delete go through these; they check the owner passcode). */
-export async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
+export async function rpc<T>(fn: string, args: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
   const r = await fetch(`${URL_}/rest/v1/rpc/${fn}`, {
     method: "POST",
     headers: { ...headers(), "Content-Type": "application/json" },
     body: JSON.stringify(args),
     cache: "no-store",
+    signal,
   });
   if (!r.ok) throw new Error("HTTP " + r.status);
   return (await r.json()) as T;

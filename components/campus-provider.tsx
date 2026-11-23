@@ -15,7 +15,6 @@ type CampusState = {
   labels: DbLabel[]; // free text names (not used by the editor)
   loading: boolean;
   error: string | null;
-  reload: () => void;
   refreshBlocks: () => Promise<void>; // fetch the saved labels again (after the owner saves)
   // Owner editing. Only shown with ?admin=1; saving needs the owner passcode.
   admin: boolean;
@@ -27,7 +26,7 @@ type CampusState = {
 };
 
 const Ctx = React.createContext<CampusState>({
-  fc: null, blocks: [], db: [], labels: [], loading: true, error: null, reload: () => {}, refreshBlocks: async () => {},
+  fc: null, blocks: [], db: [], labels: [], loading: true, error: null, refreshBlocks: async () => {},
   admin: false, editing: false, setEditing: () => {}, editSpot: null, onEditTap: () => {}, clearEditSpot: () => {},
 });
 
@@ -40,7 +39,6 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
   const [db, setDb] = React.useState<DbBlock[]>([]);
   const [labels, setLabels] = React.useState<DbLabel[]>([]);
   const [error, setError] = React.useState<string | null>(null);
-  const [tick, setTick] = React.useState(0);
   const [admin, setAdmin] = React.useState(false);
   const [editing, setEditing] = React.useState(false);
   const [editSpot, setEditSpot] = React.useState<{ at: Pt; t: number } | null>(null);
@@ -49,13 +47,13 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     let alive = true;
-    loadCampus(tick > 0)
+    loadCampus()
       .then((fc) => { if (alive) { setBase(fc); setError(null); } })
       .catch((e: unknown) => { if (alive) setError("Could not load the campus map (" + (e instanceof Error ? e.message : String(e)) + "). Check your internet and reload."); });
     fetchBlocks().then((r) => { if (alive) setDb(r); }).catch(() => {});
     fetchLabels().then((r) => { if (alive) setLabels(r); }).catch(() => {});
     return () => { alive = false; };
-  }, [tick]);
+  }, []);
 
   const refreshBlocks = React.useCallback(async () => {
     try { setDb(await fetchBlocks()); } catch { /* keep what is shown */ }
@@ -74,7 +72,6 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
       labels,
       loading: !base && !error,
       error,
-      reload: () => setTick((t) => t + 1),
       refreshBlocks,
       admin, editing, setEditing, editSpot, onEditTap, clearEditSpot,
     };

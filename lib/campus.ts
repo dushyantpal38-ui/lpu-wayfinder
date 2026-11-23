@@ -4,7 +4,7 @@
 export type Pt = [number, number]; // [longitude, latitude]
 
 /** One block number on a building, and the spot where its label goes. A connected complex can carry several. */
-export type Mark = { num: string; c: Pt; draft: boolean; cell?: Pt[]; hidden?: boolean }; // cell: this number's part of a shared outline
+export type Mark = { num: string; c: Pt; cell?: Pt[]; hidden?: boolean }; // cell: this number's part of a shared outline
 
 export type FeatureProps = {
   kind: "outline" | "building" | "road" | "path" | "green";
@@ -16,7 +16,6 @@ export type FeatureProps = {
   h?: number; // height in metres
   c?: Pt; // centre
   c0?: Pt; // original centre
-  draft?: boolean; // number is a guess from the 2011 plan
   gate?: boolean;
 };
 
@@ -48,7 +47,6 @@ export type Block = {
   aliases: string[];
   c: Pt | null; // where it is on the map, if placed
   placed: boolean;
-  draft: boolean; // position is a guess (no longer used: every label is placed by the owner)
   feature?: Feat;
   hidden: boolean; // hidden by the owner (only listed while the owner edits)
 };
@@ -56,7 +54,6 @@ export type Block = {
 // ---------- constants ----------
 export const REL = 21599790; // OpenStreetMap relation for the LPU campus
 export const CENTER: Pt = [75.70807, 31.25148];
-const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
 const CACHE_KEY = "lpuCampusNextV1";
 
 // Main gate [lng, lat]. Leave null to use the place the owner names "Main gate" on the map.
@@ -213,19 +210,6 @@ function buildCollection(elements: OsmEl[]): FC {
   return { type: "FeatureCollection", features: feats };
 }
 
-async function queryOverpass(q: string, n = 0): Promise<{ elements: OsmEl[] }> {
-  try {
-    const r = await fetch(OVERPASS[n], { method: "POST", body: "data=" + encodeURIComponent(q), signal: AbortSignal.timeout(40000) });
-    if (!r.ok) throw new Error("HTTP " + r.status);
-    const d = (await r.json()) as { elements?: OsmEl[]; remark?: string };
-    if (!Array.isArray(d.elements)) throw new Error(d.remark ? "server said: " + d.remark : "no data returned");
-    return { elements: d.elements };
-  } catch (err) {
-    if (n + 1 < OVERPASS.length) return queryOverpass(q, n + 1);
-    throw new Error((serverError ? "site server: " + serverError + "; " : "") + "OpenStreetMap server: " + (err instanceof Error ? err.message : String(err)));
-  }
-}
-
 /** A saved copy of the campus data that ships with the site (public/campus-raw.json). Fast, and needs no outside server. */
 async function loadSnapshot(): Promise<FC | null> {
   try {
@@ -256,28 +240,18 @@ async function loadFromServer(): Promise<FC | null> {
   }
 }
 
-/** Loads the campus buildings, roads and outline. Uses a saved copy in the browser unless force is true. */
-export async function loadCampus(force = false): Promise<FC> {
+/** Loads the campus buildings, roads and outline: the copy shipped with the site, else the one saved in this browser, else the site's server. */
+export async function loadCampus(): Promise<FC> {
   const snap = await loadSnapshot();
   if (snap) return snap;
-  if (!force) {
-    try {
-      const c = localStorage.getItem(CACHE_KEY);
-      if (c) return JSON.parse(c) as FC;
-    } catch { /* no saved copy */ }
-  }
+  try {
+    const c = localStorage.getItem(CACHE_KEY);
+    if (c) return JSON.parse(c) as FC;
+  } catch { /* no saved copy */ }
   const viaServer = await loadFromServer();
-  if (viaServer) {
-    try { localStorage.setItem(CACHE_KEY, JSON.stringify(viaServer)); } catch { /* ignore */ }
-    return viaServer;
-  }
-  const q1 = `[out:json][timeout:90];rel(${REL});map_to_area->.a;(rel(${REL});way(area.a)["building"];way(area.a)["highway"];way(area.a)["leisure"];way(area.a)["landuse"];);out geom;`;
-  const q2 = `[out:json][timeout:90];rel(${REL})->.r;(.r;way["building"](31.238,75.688,31.264,75.724);way["highway"](31.238,75.688,31.264,75.724););out geom;`;
-  let d = await queryOverpass(q1);
-  if (!d.elements.some((e) => e.type === "way")) d = await queryOverpass(q2);
-  const fc = buildCollection(d.elements);
-  try { localStorage.setItem(CACHE_KEY, JSON.stringify(fc)); } catch { /* storage full or blocked */ }
-  return fc;
+  if (!viaServer) throw new Error("site server: " + (serverError || "no data"));
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify(viaServer)); } catch { /* storage full or blocked */ }
+  return viaServer;
 }
 
 // ---------- putting the saved labels on buildings ----------
@@ -349,7 +323,7 @@ export function placeBlocks(input: FC, db: DbBlock[]): FC {
     const f = buildingAt(blds, [r.lng, r.lat]);
     if (!f) return;
     const p = f.properties;
-    p.marks = [...(p.marks || []), { num: r.block_no.toUpperCase(), c: [r.lng, r.lat], draft: false, hidden: !!r.hidden }];
+    p.marks = [...(p.marks || []), { num: r.block_no.toUpperCase(), c: [r.lng, r.lat], hidden: !!r.hidden }];
     if (!r.hidden && isGateName(r.name)) p.gate = true;
   });
   blds.forEach((f) => {
@@ -360,7 +334,6 @@ export function placeBlocks(input: FC, db: DbBlock[]): FC {
     // Each numbered building also keeps one main number, for code that reads a single number.
     // A building with only hidden labels shows nothing, not even its OpenStreetMap name.
     p.num = shown.length ? shown[0].num : "";
-    p.draft = false;
     p.label = shown.map((m) => tagOf(m.num)).join(" · ");
     // Each number on a shared outline gets its own part, so selecting it lights up only its building.
     if (shown.length >= 2) {
@@ -415,7 +388,6 @@ export function buildBlocks(fc: FC, db: DbBlock[]): Block[] {
       aliases: (r && r.aliases) || [],
       c,
       placed: !!c,
-      draft: false,
       feature: hit ? hit.f : undefined,
       hidden: !!(r && r.hidden),
     };

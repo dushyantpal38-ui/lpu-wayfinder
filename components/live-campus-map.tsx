@@ -247,7 +247,7 @@ export function LiveCampusMap({ destination = null, onDestinationChange, onNavig
     if (map && b) map.fitBounds(b as never, { padding: { top: 90, bottom: 120, left: 24, right: 72 }, pitch: threeD ? 45 : 0, bearing: 0, duration: 800 });
   };
   const toMe = () => {
-    if (geo !== "on") { startLocation(); return; }
+    if (geo !== "on" || outside) { startLocation(); return; } // tracking stops outside campus: start it again
     if (!onCampus) { say("You're outside the campus right now."); return; }
     if (navigating) { setFollow(true); return; }
     if (map && user) map.flyTo({ center: user, zoom: Math.max(map.getZoom(), 17), duration: 800 });

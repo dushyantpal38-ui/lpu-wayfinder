@@ -424,13 +424,6 @@ function straighten(g: Graph, raw: XY[], startBld: number): XY[] {
   return out;
 }
 
-/** Length of a line of [lng, lat] points, in metres. */
-export function lineMetres(coords: Pt[]): number {
-  let m = 0;
-  for (let i = 1; i < coords.length; i++) m += dist(toXY(coords[i - 1]), toXY(coords[i]));
-  return m;
-}
-
 /**
  * Where someone is along a route they are walking: how far they are from the line, and the part
  * still ahead of them (starting at their own spot). Used to keep the line steady while walking.
