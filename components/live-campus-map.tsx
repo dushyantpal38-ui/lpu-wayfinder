@@ -261,17 +261,23 @@ export function LiveCampusMap({ destination = null, onDestinationChange, onNavig
   // While walking, the route is kept steady: it only shortens behind the student, and is worked out
   // afresh only if they wander more than 25 m off it.
   const kept = React.useRef<{ num: string; coords: Pt[]; metres: number } | null>(null);
+  // GPS sends a fix about every second, often only jittering. A full route search waits until the student
+  // has moved more than 5 m; the cheap trim while walking (progressAlong) still follows every fix.
+  const routeFrom = React.useRef<Pt | null>(null);
+  if (!user) routeFrom.current = null;
+  else if (!routeFrom.current || distanceMetres(routeFrom.current, user) > 5) routeFrom.current = user;
+  const from = routeFrom.current;
   const walk: Route | null = React.useMemo(() => {
-    if (!graph || !user || !dest || !dest.c || !onCampus) return null;
+    if (!graph || !user || !from || !dest || !dest.c || !onCampus) return null;
     const k = kept.current;
     if (navigating && k && k.num === dest.num) {
       const p = progressAlong(k.coords, user);
       if (p.off <= 25) return { coords: p.ahead, metres: p.metresLeft, onRoads: true };
     }
-    const r = findRoute(graph, user, dest.c, destRing);
+    const r = findRoute(graph, from, dest.c, destRing);
     if (navigating) kept.current = { num: dest.num, coords: r.coords, metres: Math.max(k && k.num === dest.num ? k.metres : 0, r.metres) };
     return r;
-  }, [graph, user, dest, destRing, onCampus, navigating]);
+  }, [graph, navigating ? user : from, dest, destRing, onCampus, navigating]); // eslint-disable-line react-hooks/exhaustive-deps
   const route: Pt[] | null = walk && walk.coords.length > 1 ? walk.coords : null;
   const metres = walk ? Math.round(walk.metres) : null;
   const minutes = metres !== null ? Math.max(1, Math.round(metres / 80)) : null; // about 4.8 km/h
