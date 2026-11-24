@@ -39,7 +39,12 @@ const nextConfig = {
   poweredByHeader: false,
   eslint: { ignoreDuringBuilds: true }, // no ESLint config in this project; TypeScript errors do fail the build
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      // The campus snapshot changes only on deploy, at the same address: browsers keep it a day and then
+      // refresh it in the background, so it never blocks the map from opening.
+      { source: "/campus-raw.json", headers: [{ key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=2592000" }] },
+    ];
   },
 };
 

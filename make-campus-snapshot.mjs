@@ -44,7 +44,13 @@ for (const e of [...map.elements, ...rel.elements]) {
   if (e.type === "node") nodes.set(e.id, e);
   else if (e.type === "way") ways.set(e.id, e);
 }
-const geom = (w) => w.nodes.map((id) => nodes.get(id)).filter(Boolean).map((n) => ({ lat: n.lat, lon: n.lon }));
+const geom = (w) => w.nodes.map((id) => nodes.get(id)).filter(Boolean).map((n) => ({ lat: round(n.lat), lon: round(n.lon) }));
+
+// Only the tags lib/campus.ts reads (buildCollection). Everything else is dropped to keep the file small.
+const KEEP = ["building", "highway", "leisure", "landuse", "amenity", "shop", "name", "ref", "addr:housename", "building:name", "height", "building:levels"];
+const slim = (t = {}) => Object.fromEntries(KEEP.filter((k) => t[k] !== undefined).map((k) => [k, t[k]]));
+// 6 decimals is about 11 cm, finer than any phone GPS.
+const round = (v) => Math.round(v * 1e6) / 1e6;
 
 const relation = rel.elements.find((e) => e.type === "relation" && e.id === CAMPUS_REL);
 if (!relation) throw new Error("Campus relation not found");
@@ -53,11 +59,10 @@ if (!relation) throw new Error("Campus relation not found");
 const elements = [{
   type: "relation",
   id: relation.id,
-  tags: relation.tags,
-  members: relation.members.map((m) =>
-    m.type === "way" && ways.get(m.ref)
-      ? { type: "way", ref: m.ref, role: m.role, geometry: geom(ways.get(m.ref)) }
-      : { type: m.type, ref: m.ref, role: m.role }),
+  // The app only uses the outline: way members with their points.
+  members: relation.members
+    .filter((m) => m.type === "way" && ways.get(m.ref))
+    .map((m) => ({ type: "way", role: m.role, geometry: geom(ways.get(m.ref)) })),
 }];
 
 let buildings = 0;
@@ -66,15 +71,14 @@ for (const w of ways.values()) {
   if (!(t.building || t.highway || t.leisure || t.landuse)) continue;
   const g = geom(w);
   if (g.length !== w.nodes.length) continue; // skip ways cut by the box edge
-  elements.push({ type: "way", id: w.id, tags: t, geometry: g });
+  elements.push({ type: "way", tags: slim(t), geometry: g }); // the app does not read way ids
   if (t.building) buildings++;
 }
 
-EXTRA_BUILDINGS.forEach((b, i) => {
+EXTRA_BUILDINGS.forEach((b) => {
   elements.push({
     type: "way",
-    id: -(i + 1), // negative id = not from OpenStreetMap
-    tags: { building: "yes", note: b.note, source: "lpu-wayfinder traced" },
+    tags: { building: "yes" }, // b.note says which building it is; the app does not need it
     geometry: b.ring.map(([lon, lat]) => ({ lat, lon })),
   });
 });
