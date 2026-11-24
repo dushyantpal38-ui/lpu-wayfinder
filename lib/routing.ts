@@ -147,9 +147,10 @@ export function buildGraph(fc: FC): Graph {
   const g: Graph = { pts, xy, adj, segs, blds, bGrid, nGrid, sGrid };
 
   // Mend tiny gaps: two line ends within 4 m of each other count as one junction.
-  for (const a of ends) {
+  const isEnd = new Set(ends);
+  for (const a of isEnd) {
     for (const b of gridQuery(nGrid, xy[a][0] - 4, xy[a][1] - 4, xy[a][0] + 4, xy[a][1] + 4)) {
-      if (a < b && ends.includes(b) && dist(xy[a], xy[b]) < 4 && !adj[a].some((e) => e.to === b)) link(a, b);
+      if (a < b && isEnd.has(b) && dist(xy[a], xy[b]) < 4 && !adj[a].some((e) => e.to === b)) link(a, b);
     }
   }
 
