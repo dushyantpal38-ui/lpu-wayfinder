@@ -4,12 +4,15 @@ import * as React from "react";
 import { ChevronUp, DoorOpen, Download, Search, Star, X } from "lucide-react";
 import { LiveCampusMap } from "@/components/live-campus-map";
 import { ShaderBackground } from "@/components/ui/shader-background";
-import { AdminEditor } from "@/components/admin-editor";
+import dynamic from "next/dynamic";
 import { useCampus } from "@/components/campus-provider";
 import { BlockPlate } from "@/components/block-plate";
 import { distanceMetres, searchBlocks, type Block, type Pt } from "@/lib/campus";
 import { formatDistance, parseRoom } from "@/lib/places";
 import { cn } from "@/lib/utils";
+
+// The owner's editor (and the stats inside it) is only downloaded when the address has ?admin=1.
+const AdminEditor = dynamic(() => import("@/components/admin-editor").then((m) => m.AdminEditor), { ssr: false });
 
 const CATEGORY: Record<string, string> = { academic: "Academic block", hostel: "Hostel", food: "Food and shops", park: "Park", sports: "Sports", other: "Building" };
 
@@ -51,7 +54,7 @@ function PlaceChip({ b, onPick }: { b: Block; onPick: () => void }) {
 // The live campus map fills the screen. The search button opens the block list
 // (a sheet from the bottom on phones, a panel on the left on computers).
 export function LpuWayfinder() {
-  const { blocks, db, loading, editing } = useCampus();
+  const { blocks, db, loading, editing, admin } = useCampus();
   const [query, setQuery] = React.useState("");
   const [destination, setDestination] = React.useState<string | null>(null);
   const [room, setRoom] = React.useState<string | null>(null); // from a timetable code like 34-204
@@ -232,7 +235,7 @@ export function LpuWayfinder() {
           while walking, when the phone already runs GPS and the map, to save battery. */}
       {!navigating && <ShaderBackground className="absolute inset-0 z-[-1]" />}
       <section className="absolute inset-0">
-        <AdminEditor onStart={() => { setDestination(null); setRoom(null); setOpen(false); }} />
+        {admin && <AdminEditor onStart={() => { setDestination(null); setRoom(null); setOpen(false); }} />}
         <LiveCampusMap
           destination={destination}
           room={room}

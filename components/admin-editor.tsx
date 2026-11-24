@@ -4,12 +4,15 @@ import * as React from "react";
 import { BarChart3, Copy, Eye, EyeOff, Lock, Move, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useCampus } from "@/components/campus-provider";
 import { BlockPlate } from "@/components/block-plate";
-import { VisitorStats } from "@/components/visitor-stats";
+import dynamic from "next/dynamic";
 import { buildingAtPoint, distanceMetres, isNamed, numCmp, pointInRing, type DbBlock, type Pt } from "@/lib/campus";
 import {
   loadPasscode, ownerDelete, ownerError, ownerLogin, ownerLogout, ownerSave, placeId, savePasscode, takeOldPasscode, type OwnerRow,
 } from "@/lib/admin";
 import { cn } from "@/lib/utils";
+
+// The stats screen is only downloaded when the owner opens it.
+const VisitorStats = dynamic(() => import("@/components/visitor-stats").then((m) => m.VisitorStats), { ssr: false });
 
 // Owner-only map editing: add, change, move, hide or delete block numbers and named places (buildings without a
 // number, parks, food courts). Shown only with ?admin=1 in the address; every save is checked against the owner
