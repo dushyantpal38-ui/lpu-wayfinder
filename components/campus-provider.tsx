@@ -45,6 +45,13 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => { setAdmin(readAdminFlag()); }, []);
 
+  // Offline and weak-wifi support (public/sw.js). Off in development, where it would serve stale code.
+  React.useEffect(() => {
+    if (process.env.NODE_ENV === "production" && "serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => { /* the site still works without it */ });
+    }
+  }, []);
+
   React.useEffect(() => {
     let alive = true;
     loadCampus()

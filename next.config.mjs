@@ -43,6 +43,8 @@ const nextConfig = {
       { source: "/:path*", headers: securityHeaders },
       // The campus snapshot changes only on deploy, at the same address: browsers keep it a day and then
       // refresh it in the background, so it never blocks the map from opening.
+      // The service worker itself must always be checked fresh, or a fix to it could take a day to arrive.
+      { source: "/sw.js", headers: [{ key: "Cache-Control", value: "no-cache" }] },
       { source: "/campus-raw.json", headers: [{ key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=2592000" }] },
     ];
   },
